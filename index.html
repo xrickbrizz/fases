@@ -681,7 +681,7 @@ function openThread(id){
       render();
       document.getElementById('s').addEventListener('click', ()=>{ const m=document.getElementById('m').value; if(!m) return; msgs.push({from: '${currentUser ? currentUser.email : 'anon'}', text:m, at:new Date().toISOString()}); render(); document.getElementById('m').value=''; });
     </script></body></html>`);
-}
+});
 
 /* ========= Simple Users (local) ========= */
 function openLoginModal(){ document.getElementById('modalLogin').style.display='flex'; }
