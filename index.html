@@ -1,871 +1,1265 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Calendario de Estudio — Fase 2 (Prototipo)</title>
-<style>
-  :root{
-    --bg: #0b1220;
-    --card: rgba(30,41,59,0.95);
-    --cardAlt: rgba(15,23,42,0.9);
-    --border: #334155;
-    --text: #f0f0f0;
-    --muted: #cbd5e1;
-    --accent1: #2563eb;
-    --accent2: #1d4ed8;
-    --danger: #ef4444;
-    --ok: #10b981;
-    --today-glow: rgba(99,102,241,0.95);
-    --sidebar-w: 260px;
-  }
-  *{ box-sizing:border-box; }
-  html,body{ height:100%; margin:0; font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif; background: linear-gradient(135deg,#071020,#081428 60%); color:var(--text); -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
-  /* Layout */
-  .app {
-    display:flex; min-height:100vh; gap:18px; padding:18px;
-  }
-  .sidebar {
-    width:var(--sidebar-w); background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border-radius:12px; padding:12px; border:1px solid rgba(148,163,184,0.06);
-    box-shadow: 0 8px 28px rgba(2,6,23,0.6);
-    position:relative;
-  }
-  .main { flex:1; }
-  header{ display:flex; align-items:center; gap:14px; justify-content:space-between; margin-bottom:12px; }
-  .brand{ font-size:1.25rem; font-weight:700; display:flex; gap:8px; align-items:center; }
-  .small-muted{ color:var(--muted); font-size:0.9rem; }
-  button.btn{ background: linear-gradient(90deg,var(--accent1),var(--accent2)); color:#fff; border:none; padding:8px 12px; border-radius:8px; cursor:pointer; }
-  .ghost{ background:transparent; border:1px solid rgba(255,255,255,0.06); color:var(--muted); }
-
-  /* Sidebar items */
-  .quick { display:flex; flex-direction:column; gap:8px; margin-top:10px; }
-  .card{ background:var(--card); border-radius:10px; padding:10px; border:1px solid rgba(148,163,184,0.06); box-shadow: 0 6px 20px rgba(0,0,0,0.5); }
-  .nav-item{ display:flex; gap:8px; align-items:center; padding:8px; border-radius:8px; cursor:pointer; }
-  .nav-item:hover{ background: rgba(255,255,255,0.02); }
-
-  /* Top toolbar inside main */
-  .toolbar { display:flex; gap:8px; justify-content:space-between; align-items:center; margin-bottom:12px; }
-  .left, .right { display:flex; gap:8px; align-items:center; }
-
-  /* Calendar */
-  .calendar-wrap { border-radius:12px; overflow:hidden; }
-  .days { display:grid; grid-template-columns:repeat(7,1fr); gap:8px; padding:12px; background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent); }
-  .day, .day-name { border:1px solid var(--border); min-height:88px; padding:8px; border-radius:8px; background:rgba(255,255,255,0.01); display:flex; flex-direction:column; }
-  .day-name{ text-align:center; font-weight:600; color:var(--muted); align-items:center; justify-content:center; }
-  .date-number{ font-weight:700; color:#cbd5e1; display:inline-block; padding:4px 8px; border-radius:6px; background:transparent; }
-  .study-label { margin-top:6px; padding:6px 8px; border-radius:8px; color:#fff; font-size:0.85rem; max-height:3.6rem; overflow:hidden; }
-  .task-item{ display:flex; gap:8px; align-items:center; justify-content:space-between; padding:6px; border-radius:8px; background:rgba(255,255,255,0.03); margin-top:6px; }
-
-  /* Modals (simple) */
-  .modal { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.6); z-index:120; padding:16px; }
-  .modal .content { background:#071428; padding:14px; width:480px; max-width:96%; border-radius:10px; border:1px solid rgba(148,163,184,0.06); }
-  label{ display:block; color:var(--muted); margin:8px 0 4px; font-size:0.9rem; }
-  input[type="text"], input[type="time"], input[type="date"], textarea, select { width:100%; padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.04); background:#071428; color:var(--text); }
-  textarea{ min-height:80px; resize:vertical; }
-
-  /* Responsive */
-  @media (max-width:900px){
-    .app{ flex-direction:column; padding:10px; }
-    .sidebar{ width:100%; order:2; }
-    .main{ order:1; }
-    .days{ grid-template-columns:repeat(2,1fr); }
-  }
-
-  /* Small tweaks */
-  .muted{ color:var(--muted); font-size:0.9rem; }
-  .pill{ padding:6px 10px; background:rgba(255,255,255,0.02); border-radius:999px; font-size:0.85rem; }
-  .inline{ display:inline-flex; gap:8px; align-items:center; }
-  .flexcol{ display:flex; flex-direction:column; gap:8px; }
-  .center{ text-align:center; }
-  .hr{ height:1px; background:rgba(255,255,255,0.03); margin:8px 0; border-radius:2px; }
-  .tag{ padding:4px 8px; border-radius:6px; background:rgba(255,255,255,0.03); font-size:0.85rem; }
-</style>
-</head>
-<body>
-
-<div class="app">
-
-  <!-- SIDEBAR -->
-  <aside class="sidebar card" id="sidebar">
-    <div class="brand">📚 <span>Calendario — Fase 2</span></div>
-    <div class="small-muted" id="userGreeting">Sin sesión</div>
-
-    <div class="hr"></div>
-
-    <div class="quick">
-      <div class="nav-item" onclick="showView('study')">🗓️ Calendario</div>
-      <div class="nav-item" onclick="showView('agenda')">🕘 Agenda / Horario</div>
-      <div class="nav-item" onclick="showView('exams')">✏ Parciales / Finales</div>
-      <div class="nav-item" onclick="showView('forums')">💬 Foros</div>
-      <div class="nav-item" onclick="showView('chat')">🔒 Mensajería</div>
-      <div class="nav-item" onclick="showView('settings')">⚙️ Ajustes</div>
-      <div class="nav-item" onclick="backupNow()">💾 Backup ahora</div>
-      <div class="nav-item" onclick="openLoginModal()">👤 Login / Registro</div>
-    </div>
-
-    <div class="hr"></div>
-
-    <div>
-      <strong>Widgets</strong>
-      <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
-        <div class="tag" id="nextExamWidget">Próximo parcial: —</div>
-        <div class="tag" id="todayStudyWidget">Horas hoy: 0</div>
-        <div class="tag" id="pendingTasksWidget">Tareas pendientes: 0</div>
-      </div>
-    </div>
-
-    <div style="flex:1"></div>
-
-    <div style="display:flex;gap:8px;margin-top:12px">
-      <button class="btn" onclick="exportAll()">Exportar</button>
-      <button class="btn ghost" onclick="importAll()">Importar</button>
-    </div>
-  </aside>
-
-  <!-- MAIN -->
-  <main class="main">
-
-    <header>
-      <div class="brand">📚 Calendario de Estudio — Prototipo</div>
-      <div class="inline">
-        <select id="fontSelect" onchange="applyFont()" title="Fuente">
-          <option value="'Segoe UI',system-ui">Sego UI (default)</option>
-          <option value="Roboto,system-ui">Roboto</option>
-          <option value="Arial,system-ui">Arial</option>
-          <option value="Georgia,serif">Georgia (serif)</option>
-        </select>
-        <select id="justifySelect" onchange="applyJustify()" title="Justificación">
-          <option value="left">Izquierda</option>
-          <option value="center">Centrado</option>
-          <option value="justify">Justificado</option>
-        </select>
-        <button class="btn" onclick="toggleTheme()">🌓 Modo</button>
-      </div>
-    </header>
-
-    <div class="toolbar card">
-      <div class="left">
-        <button class="btn" onclick="changeMonth(-1)">◀</button>
-        <div id="monthYear" class="pill">—</div>
-        <button class="btn" onclick="changeMonth(1)">▶</button>
-        <div class="muted" style="margin-left:8px">Vista: <span id="currentViewLabel">Calendario</span></div>
-      </div>
-      <div class="right">
-        <button class="btn" onclick="openCreateTaskModal()">➕ Añadir tarea / recordatorio</button>
-        <button class="btn ghost" onclick="openSubjectsModal()">🎨 Materias</button>
-        <button class="btn ghost" onclick="openForumsModal()">💬 Foros</button>
-      </div>
-    </div>
-
-    <!-- VISTAS -->
-    <section id="studyView" class="calendar-wrap card" style="margin-top:12px; padding-bottom:12px">
-      <div style="padding:10px; display:flex; justify-content:space-between; align-items:center">
-        <div><strong id="monthTitle">—</strong></div>
-        <div class="muted">Puedes clickear una fecha para añadir estudio o tareas.</div>
-      </div>
-      <div class="days" id="calendarDays"></div>
-    </section>
-
-    <section id="agendaView" class="card" style="display:none; padding:12px; margin-top:12px">
-      <div style="display:flex; justify-content:space-between; align-items:center">
-        <strong>Agenda semanal (08:00 — 23:00)</strong>
-        <div>
-          <button class="btn" onclick="openAgendaModal()">➕ Añadir clase</button>
-          <button class="btn ghost" onclick="exportSchedulePNG()">📤 Exportar imagen</button>
-        </div>
-      </div>
-      <div id="agendaGrid" style="margin-top:10px; overflow:auto;"></div>
-    </section>
-
-    <section id="examsView" class="card" style="display:none; padding:12px; margin-top:12px">
-      <div style="display:flex; justify-content:space-between; align-items:center">
-        <strong>Parciales y Finales</strong>
-        <div>
-          <button class="btn" onclick="openExamModal()">➕ Nuevo parcial/final</button>
-          <button class="btn ghost" onclick="planFinals()">📅 Planificar finales</button>
-        </div>
-      </div>
-      <div id="examsList" style="margin-top:10px;"></div>
-    </section>
-
-    <section id="forumsView" class="card" style="display:none; padding:12px; margin-top:12px">
-      <div style="display:flex; gap:8px;">
-        <button class="btn" onclick="showForum('market')">Foro Venta/Intercambio</button>
-        <button class="btn" onclick="showForum('summaries')">Parciales / Resúmenes</button>
-        <button class="btn" onclick="showForum('professors')">Opiniones Profesores</button>
-      </div>
-      <div id="forumArea" style="margin-top:12px;"></div>
-    </section>
-
-    <section id="chatView" class="card" style="display:none; padding:12px; margin-top:12px">
-      <div style="display:flex; justify-content:space-between; align-items:center">
-        <strong>Mensajería privada (local)</strong>
-        <button class="btn" onclick="openNewThread()">➕ Nuevo chat</button>
-      </div>
-      <div id="chatArea" style="margin-top:12px;"></div>
-    </section>
-
-    <section id="settingsView" class="card" style="display:none; padding:12px; margin-top:12px">
-      <div style="display:flex; gap:12px; flex-wrap:wrap;">
-        <div style="flex:1; min-width:220px">
-          <h4>Apariencia</h4>
-          <label>Paleta principal</label>
-          <input type="color" id="accent1" value="#2563eb" onchange="savePalette()" />
-          <input type="color" id="accent2" value="#1d4ed8" onchange="savePalette()" />
-          <div style="margin-top:8px">
-            <label>Modo oscuro por defecto</label>
-            <select id="defaultMode" onchange="saveSettings()">
-              <option value="dark">Oscuro</option>
-              <option value="light">Claro</option>
-            </select>
-          </div>
-        </div>
-        <div style="flex:1; min-width:220px">
-          <h4>Notificaciones & Backup</h4>
-          <label>Notificaciones locales</label>
-          <button class="btn" onclick="requestNotifyPerm()">Pedir permiso</button>
-          <div style="margin-top:8px">
-            <label>Backup automático (minutos)</label>
-            <input type="number" id="autoBackupMins" value="60" min="0" />
-            <button class="btn ghost" onclick="startAutoBackup()">Iniciar backup automático</button>
-          </div>
-        </div>
-        <div style="flex:1; min-width:220px">
-          <h4>Usuarios</h4>
-          <div class="muted">Registro / login sencillos (no para producción)</div>
-          <div style="display:flex;gap:8px;margin-top:8px">
-            <button class="btn" onclick="openLoginModal()">Abrir login</button>
-            <button class="btn ghost" onclick="logout()">Cerrar sesión</button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-  </main>
-</div>
-
-<!-- MODALES -->
-<div id="modalTask" class="modal"><div class="content">
-  <h3 id="modalTaskTitle">Nueva tarea</h3>
-  <label>Fecha</label><input type="date" id="taskDate" />
-  <label>Tipo (Tarea / TP / Parcial / Informe)</label>
-  <select id="taskType"><option>TP</option><option>Tarea</option><option>Parcial</option><option>Informe</option></select>
-  <label>Título</label><input type="text" id="taskTitle" />
-  <label>Descripción</label><textarea id="taskDesc"></textarea>
-  <label>Materia</label><select id="taskSubject"></select>
-  <div style="display:flex;gap:8px;margin-top:8px">
-    <button class="btn" onclick="saveTask()">Guardar</button>
-    <button class="btn ghost" onclick="closeModal('modalTask')">Cancelar</button>
-  </div>
-</div></div>
-
-<div id="modalSubjects" class="modal"><div class="content">
-  <h3>Gestionar Materias</h3>
-  <div id="subjectsListSmall"></div>
-  <label>Nombre</label><input type="text" id="newSubjectName" />
-  <label>Color</label><input type="color" id="newSubjectColor" value="#3b82f6" />
-  <div style="display:flex;gap:8px;margin-top:8px">
-    <button class="btn" onclick="addSubject()">Agregar</button>
-    <button class="btn ghost" onclick="closeModal('modalSubjects')">Cerrar</button>
-  </div>
-</div></div>
-
-<div id="modalExam" class="modal"><div class="content">
-  <h3>Nuevo Parcial / Final</h3>
-  <label>Fecha</label><input type="date" id="examDate" />
-  <label>Materia</label><select id="examSubjectSelect"></select>
-  <label>Descripción</label><input type="text" id="examTitle" />
-  <div style="display:flex;gap:8px;margin-top:8px">
-    <button class="btn" onclick="saveExam()">Guardar</button>
-    <button class="btn ghost" onclick="closeModal('modalExam')">Cancelar</button>
-  </div>
-</div></div>
-
-<div id="modalLogin" class="modal"><div class="content">
-  <h3>Login / Registro</h3>
-  <label>Email</label><input type="text" id="loginEmail" />
-  <label>Nombre</label><input type="text" id="loginName" />
-  <label>Rol</label>
-  <select id="loginRole"><option value="student">Estudiante</option><option value="admin">Admin</option></select>
-  <div style="display:flex;gap:8px;margin-top:8px">
-    <button class="btn" onclick="registerUser()">Registrar</button>
-    <button class="btn ghost" onclick="loginUser()">Ingresar</button>
-    <button class="btn ghost" onclick="closeModal('modalLogin')">Cerrar</button>
-  </div>
-</div></div>
-
-<div id="modalForum" class="modal"><div class="content">
-  <h3 id="modalForumTitle">Foro</h3>
-  <label>Título</label><input type="text" id="forumPostTitle" />
-  <label>Contenido</label><textarea id="forumPostContent"></textarea>
-  <label>Etiqueta</label><input type="text" id="forumPostTag" placeholder="ej: venta, resumen, profesorX" />
-  <div style="display:flex;gap:8px;margin-top:8px">
-    <button class="btn" onclick="saveForumPost()">Publicar</button>
-    <button class="btn ghost" onclick="closeModal('modalForum')">Cerrar</button>
-  </div>
-</div></div>
-
-<div id="modalChatNew" class="modal"><div class="content">
-  <h3>Nuevo Chat</h3>
-  <label>Con quién (email)</label><input type="text" id="chatWith" />
-  <label>Mensaje inicial</label><textarea id="chatInit"></textarea>
-  <div style="display:flex;gap:8px;margin-top:8px">
-    <button class="btn" onclick="createThread()">Crear</button>
-    <button class="btn ghost" onclick="closeModal('modalChatNew')">Cerrar</button>
-  </div>
-</div></div>
-
-<!-- SCRIPTS -->
-<script>
-/* ========= Estado global ========= */
-const today = new Date();
-let currentDate = new Date(today.getFullYear(), today.getMonth(), 1);
-let subjects = JSON.parse(localStorage.getItem('subjects_v2') || '[]');
-let tasks = JSON.parse(localStorage.getItem('tasks_v2') || '{}'); // dateKey -> list
-let exams = JSON.parse(localStorage.getItem('exams_v2') || '[]'); // array of {date,subject,title}
-let forumPosts = JSON.parse(localStorage.getItem('forums_v2') || '{}'); // forumId -> posts arr
-let users = JSON.parse(localStorage.getItem('users_v2') || '[]');
-let currentUser = JSON.parse(localStorage.getItem('currentUser_v2') || 'null');
-let agendaData = JSON.parse(localStorage.getItem('agenda_v2') || '{}'); // day->array
-let threads = JSON.parse(localStorage.getItem('threads_v2') || '[]'); // chat threads
-let autoBackupTimer = null;
-
-/* ========= Utilidades ========= */
-function saveAllLocal(){
-  localStorage.setItem('subjects_v2', JSON.stringify(subjects));
-  localStorage.setItem('tasks_v2', JSON.stringify(tasks));
-  localStorage.setItem('exams_v2', JSON.stringify(exams));
-  localStorage.setItem('forums_v2', JSON.stringify(forumPosts));
-  localStorage.setItem('users_v2', JSON.stringify(users));
-  localStorage.setItem('agenda_v2', JSON.stringify(agendaData));
-  localStorage.setItem('threads_v2', JSON.stringify(threads));
-  // current user separately
-  localStorage.setItem('currentUser_v2', JSON.stringify(currentUser));
-}
-
-/* ========= Views switch ========= */
-function showView(v){
-  const views = ['study','agenda','exams','forums','chat','settings'];
-  views.forEach(x=>{
-    const el = document.getElementById(x+'View');
-    if (el) el.style.display = (x===v ? '' : 'none');
-  });
-  document.getElementById('currentViewLabel').textContent = ({study:'Calendario', agenda:'Agenda', exams:'Parciales', forums:'Foros', chat:'Mensajería', settings:'Ajustes'})[v] || v;
-  if(v==='study'){ renderCalendar(); }
-  if(v==='agenda'){ renderAgenda(); }
-  if(v==='exams'){ renderExamsList(); }
-  if(v==='forums'){ renderForumsRoot(); }
-  if(v==='chat'){ renderChatArea(); }
-}
-
-/* ========= Calendar rendering + tasks ========= */
-function formatDateKeyFromParts(y,m,d){
-  return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-}
-function renderCalendar(){
-  const daysEl = document.getElementById('calendarDays');
-  daysEl.innerHTML = '';
-  document.getElementById('monthYear').textContent = currentDate.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
-  // day names
-  const dayNames = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
-  dayNames.forEach(n=>{
-    const dn = document.createElement('div'); dn.className='day-name'; dn.textContent=n; daysEl.appendChild(dn);
-  });
-  // compute offset
-  const start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-  const end = new Date(currentDate.getFullYear(), currentDate.getMonth()+1, 0);
-  const offset = (start.getDay()+6)%7;
-  for(let i=0;i<offset;i++){ const e=document.createElement('div'); e.className='day'; daysEl.appendChild(e); }
-  // today vars
-  const now = new Date();
-  for(let d=1; d<=end.getDate(); d++){
-    const day = document.createElement('div'); day.className='day';
-    const rowNum = document.createElement('div'); rowNum.className='date-number'; rowNum.textContent = d;
-    day.appendChild(rowNum);
-    if(now.getFullYear()===currentDate.getFullYear() && now.getMonth()===currentDate.getMonth() && now.getDate()===d){
-      day.style.border = '2px solid var(--today-glow)';
+  <meta charset="UTF-8" />
+  <title>Calendario de Estudio</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <style>
+    :root{
+      --card: rgba(30,41,59,0.95);
+      --cardAlt: rgba(15,23,42,0.9);
+      --border: #334155;
+      --text: #f0f0f0;
+      --muted: #cbd5e1;
+      --shadow: 0 4px 25px rgba(0,0,0,0.4);
+      --accent1: #2563eb;
+      --accent2: #1d4ed8;
+      --danger: #ef4444;
+      --ok: #10b981;
+      --today-glow: rgba(99,102,241,0.95);
     }
-    // load tasks for this date
-    const key = formatDateKeyFromParts(currentDate.getFullYear(), currentDate.getMonth()+1, d);
-    const dayTasks = tasks[key] || [];
-    dayTasks.slice(0,3).forEach(t=>{
-      const div = document.createElement('div'); div.className='task-item';
-      div.innerHTML = `<div style="flex:1"><strong style="font-size:0.95rem">${t.title}</strong><div class="muted" style="font-size:0.82rem">${t.type} • ${t.subject||'—'}</div></div>
-                       <div style="display:flex;flex-direction:column;gap:6px">
-                         <button class="btn ghost" onclick="toggleTaskDone('${key}',${dayTasks.indexOf(t)})">${t.done? '✔' : '◻'}</button>
-                         <button class="btn" onclick="openEditTask('${key}',${dayTasks.indexOf(t)})">✏</button>
-                       </div>`;
-      // color by subject
-      if(t.subject){ const s = subjects.find(s=>s.name===t.subject); if(s) div.style.borderLeft = `6px solid ${s.color}`; }
-      day.appendChild(div);
-    });
-    // study records (if any) stored same as tasks if type === 'Estudio'
-    day.onclick = (e)=>{ if(e.target.closest('.task-item')) return; openCreateTaskModal(key); };
-    daysEl.appendChild(day);
-  }
-  updateWidgets();
-}
+    *{ box-sizing:border-box }
 
-/* Task modal */
-function openCreateTaskModal(dateKey){
-  document.getElementById('modalTaskTitle').textContent = dateKey ? 'Nueva tarea / nota' : 'Nueva tarea';
-  document.getElementById('taskDate').value = dateKey || toDateInputValue(new Date());
-  renderSubjectsOptions('taskSubject');
-  document.getElementById('taskTitle').value = '';
-  document.getElementById('taskDesc').value = '';
-  document.getElementById('modalTask').style.display = 'flex';
-}
-function toDateInputValue(d){
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-function closeModal(id){ document.getElementById(id).style.display = 'none'; }
+    /* ====== Temas por vista (gradientes) ====== */
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+      color: var(--text);
+      min-height: 100vh;
+      transition: background 300ms ease;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+    }
+    body.study-theme{
+      background:
+        radial-gradient(1200px 500px at 10% 10%, #172554 20%, transparent 60%),
+        radial-gradient(900px 400px at 90% 0%, #155e75 10%, transparent 60%),
+        radial-gradient(1000px 600px at 30% 80%, #5b21b6 10%, transparent 60%),
+        linear-gradient(135deg, #0b1220 0%, #0f172a 100%);
+    }
+    body.agenda-theme{
+      background:
+        radial-gradient(1200px 500px at 10% 10%, #064e3b 15%, transparent 60%),
+        radial-gradient(900px 400px at 90% 0%, #0d9488 10%, transparent 60%),
+        radial-gradient(1000px 600px at 30% 80%, #0b5e55 10%, transparent 60%),
+        linear-gradient(135deg, #082017 0%, #0b2a20 100%);
+    }
+    body.exams-theme{
+      background:
+        radial-gradient(1200px 500px at 10% 10%, #7f1d1d 15%, transparent 60%),
+        radial-gradient(900px 400px at 90% 0%, #b45309 10%, transparent 60%),
+        radial-gradient(1000px 600px at 30% 80%, #933333 10%, transparent 60%),
+        linear-gradient(135deg, #1a0b0b 0%, #2a0f0f 100%);
+    }
 
-function saveTask(){
-  const date = document.getElementById('taskDate').value;
-  const type = document.getElementById('taskType').value;
-  const title = document.getElementById('taskTitle').value.trim();
-  const desc = document.getElementById('taskDesc').value.trim();
-  const subject = document.getElementById('taskSubject').value;
-  if(!date || !title){ alert('Completá fecha y título'); return; }
-  const key = date;
-  if(!tasks[key]) tasks[key]=[];
-  tasks[key].push({ type, title, desc, subject, done:false, createdAt: new Date().toISOString(), author: currentUser ? currentUser.email : 'anon' });
-  saveAllLocal(); closeModal('modalTask'); renderCalendar();
-  maybeNotify(`Tarea agregada: ${title}`, key);
-}
+    header {
+      text-align: center;
+      padding: 1rem 1rem 1.25rem;
+      background: linear-gradient(90deg, #0f2027, #203a43, #2c5364);
+      font-size: 1.6rem;
+      color: #fff;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+      position: relative;
+    }
 
-/* Toggle done */
-function toggleTaskDone(dateKey, idx){
-  const arr = tasks[dateKey] || [];
-  if(arr[idx]) arr[idx].done = !arr[idx].done;
-  saveAllLocal(); renderCalendar();
-}
+    /* Botón fijo: Plan de estudios (esquina sup. derecha) */
+    .plans-fab{
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      z-index: 60;
+      background: linear-gradient(90deg, var(--accent1), var(--accent2));
+      color:#fff;
+      border:none;
+      border-radius: 999px;
+      padding:.6rem .9rem;
+      box-shadow: 0 6px 22px rgba(37,99,235,.35);
+      cursor:pointer;
+      display:flex; align-items:center; gap:.45rem;
+      font-weight:600;
+    }
+    .plans-fab:hover{ filter:brightness(1.06); transform: translateY(-1px); }
 
-/* Edit */
-function openEditTask(dateKey, idx){
-  const arr = tasks[dateKey] || [];
-  const t = arr[idx];
-  if(!t) return;
-  document.getElementById('taskDate').value = dateKey;
-  document.getElementById('taskType').value = t.type;
-  document.getElementById('taskTitle').value = t.title;
-  document.getElementById('taskDesc').value = t.desc;
-  renderSubjectsOptions('taskSubject');
-  document.getElementById('taskSubject').value = t.subject || '';
-  document.getElementById('modalTask').style.display = 'flex';
-  // replace saveTask with an edit saver temporarily
-  const saveBtn = document.querySelector('#modalTask .btn');
-  const handler = ()=>{
-    t.type = document.getElementById('taskType').value;
-    t.title = document.getElementById('taskTitle').value.trim();
-    t.desc = document.getElementById('taskDesc').value.trim();
-    t.subject = document.getElementById('taskSubject').value;
-    saveAllLocal(); closeModal('modalTask'); renderCalendar();
-    saveBtn.removeEventListener('click', handler);
-    saveBtn.addEventListener('click', saveTask);
-  };
-  saveBtn.removeEventListener('click', saveTask);
-  saveBtn.addEventListener('click', handler);
-}
+    .container {
+      max-width: 1100px;
+      margin: 1rem auto;
+      padding: 0 8px;
+    }
+    .card {
+      background: var(--card);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(148,163,184,0.12);
+      backdrop-filter: blur(6px);
+    }
 
-/* ========= Subjects CRUD (small) ========= */
-function openSubjectsModal(){ renderSubjectsListSmall(); document.getElementById('modalSubjects').style.display = 'flex'; }
-function renderSubjectsListSmall(){
-  const el = document.getElementById('subjectsListSmall'); el.innerHTML = '';
-  if(subjects.length===0) el.innerHTML='<div class="muted">No hay materias</div>';
-  subjects.forEach((s,i)=>{
-    const row = document.createElement('div'); row.style.display='flex'; row.style.justifyContent='space-between'; row.style.alignItems='center'; row.style.padding='6px 0';
-    row.innerHTML = `<div style="display:flex;gap:8px;align-items:center"><div style="width:14px;height:14px;border-radius:4px;background:${s.color}"></div><div>${s.name}</div></div>
-                     <div><button class="btn ghost" onclick="removeSubject(${i})">Borrar</button></div>`;
-    el.appendChild(row);
-  });
-  renderSubjectsOptions();
-}
-function addSubject(){
-  const n = document.getElementById('newSubjectName').value.trim();
-  const c = document.getElementById('newSubjectColor').value || '#3b82f6';
-  if(!n){ alert('Nombre requerido'); return; }
-  if(subjects.some(x=>x.name.toLowerCase()===n.toLowerCase())){ alert('Ya existe'); return; }
-  subjects.push({ name:n, color:c });
-  saveAllLocal(); renderSubjectsListSmall(); renderSubjectsOptions(); closeModal('modalSubjects');
-}
-function removeSubject(i){ if(!confirm('Eliminar materia?')) return; subjects.splice(i,1); saveAllLocal(); renderSubjectsListSmall(); renderSubjectsOptions(); }
+    .toolbar {
+      display: flex;
+      gap:.5rem;
+      justify-content: space-between;
+      align-items: center;
+      padding: .85rem;
+      background: var(--cardAlt);
+      flex-wrap: wrap;
+    }
+    .left, .right { display:flex; gap:.5rem; align-items:center }
 
-/* helper for selects */
-function renderSubjectsOptions(selectId){
-  const selIds = selectId ? [selectId] : ['taskSubject','examSubjectSelect','newSubjectSelect'];
-  selIds.forEach(id=>{
-    const el = document.getElementById(id);
-    if(!el) return;
-    el.innerHTML = '<option value="">--</option>';
-    subjects.forEach(s=>{ const o = document.createElement('option'); o.value=s.name; o.textContent = s.name; el.appendChild(o); });
-  });
-}
+    .btn {
+      background: linear-gradient(90deg, var(--accent1), var(--accent2));
+      border: none;
+      color: #fff;
+      padding: 0.5rem .9rem;
+      cursor: pointer;
+      border-radius: 8px;
+      margin: 2px;
+      transition: transform 0.15s ease, filter .15s ease;
+      box-shadow: 0 2px 10px rgba(37,99,235,.35);
+      font-size:.95rem;
+      display:flex; align-items:center; gap:.45rem;
+      white-space: nowrap;
+    }
+    .btn:hover { transform: translateY(-1px); filter: brightness(1.05); }
+    .btn.ghost { background:#475569; box-shadow:none }
+    #monthYear { font-size: 1.05rem; color: var(--muted) }
 
-/* ========= Agenda / Horario ========= */
-const dayKeys = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo'];
-function ensureAgenda(){
-  if(!agendaData || typeof agendaData !== 'object') agendaData={};
-  dayKeys.forEach(k=>{ if(!Array.isArray(agendaData[k])) agendaData[k]=[]; });
-}
-function renderAgenda(){
-  ensureAgenda();
-  const container = document.getElementById('agendaGrid'); container.innerHTML = '';
-  // simple weekly list
-  dayKeys.forEach(k=>{
-    const col = document.createElement('div'); col.className='card'; col.style.margin='8px 0'; col.style.padding='8px';
-    col.innerHTML = `<strong style="text-transform:capitalize">${k}</strong>`;
-    const list = document.createElement('div'); list.style.display='flex'; list.style.flexDirection='column'; list.style.gap='6px'; list.style.marginTop='8px';
-    agendaData[k].forEach((it,idx)=>{
-      const div = document.createElement('div'); div.style.display='flex'; div.style.justifyContent='space-between'; div.style.alignItems='center'; div.style.padding='8px'; div.style.borderRadius='8px';
-      const subj = subjects.find(s=>s.name===it.materia);
-      if(subj) div.style.background = subj.color;
-      div.innerHTML = `<div><strong>${it.materia}</strong><div class="muted">${it.inicio}–${it.fin} • ${it.aula||''}</div></div>
-                       <div><button class="btn ghost" onclick="editAgenda('${k}',${idx})">Editar</button></div>`;
-      list.appendChild(div);
-    });
-    col.appendChild(list);
-    col.appendChild(document.createElement('div'));
-    container.appendChild(col);
-  });
-}
+    /* Tabs activos: solo la pestaña visible queda gris */
+    .tab-btn { /* azul por defecto */
+      background: linear-gradient(90deg, var(--accent1), var(--accent2));
+      color:#fff;
+    }
+    .tab-btn.active-tab{ /* gris para activa */
+      background: #475569 !important;
+      box-shadow: none !important;
+      color:#f1f5f9 !important;
+    }
 
-/* minimal modal to add agenda item */
-function openAgendaModal(day){
-  ensureAgenda();
-  const title = prompt('Formato: materia|inicio|fin|aula (ej: Cálculo|08:30|10:00|Aula 204)\nDejar materia vacía para cancelar.');
-  if(!title) return;
-  const parts = title.split('|').map(s=>s.trim());
-  if(parts.length < 3) return alert('Formato inválido');
-  const [materia,inicio,fin,aula] = parts;
-  // find day key (if day provided)
-  const k = day || 'lunes';
-  if(!agendaData[k]) agendaData[k]=[];
-  agendaData[k].push({ materia, inicio, fin, aula });
-  saveAllLocal(); renderAgenda();
-}
-function editAgenda(day,idx){
-  const it = agendaData[day][idx];
-  const data = prompt('Editar (materia|inicio|fin|aula)', `${it.materia}|${it.inicio}|${it.fin}|${it.aula||''}`);
-  if(!data) return;
-  const parts = data.split('|').map(s=>s.trim());
-  agendaData[day][idx] = { materia:parts[0], inicio:parts[1], fin:parts[2], aula:parts[3] };
-  saveAllLocal(); renderAgenda();
-}
+    /* ====== Calendarios (Estudio y Parciales) ====== */
+    .days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 8px; /* usar gap en lugar de margin dentro .day */
+      background-color: #0b1220;
+      padding: 10px;
+    }
+    /* restaurado min-height para escritorio */
+    .day, .day-name {
+      border: 1px solid var(--border);
+      min-height: 110px;
+      padding: 8px 8px 12px 8px;
+      position: relative;
+      transition: box-shadow .18s ease, transform .12s ease;
+      background-clip: padding-box;
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .day-name {
+      background: rgba(15,23,42,0.85);
+      text-align: center;
+      font-weight: 600;
+      letter-spacing:.3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .day {
+      background:
+        radial-gradient(400px 160px at 80% 0%, rgba(59,130,246,.04), transparent 60%),
+        linear-gradient(180deg, rgba(255,255,255,0.012), transparent 30%);
+    }
+    .day:hover { outline: 1px solid rgba(148,163,184,0.25); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,.35) }
 
-/* export schedule as PNG (simple) */
-function exportSchedulePNG(){
-  // render agendaGrid node to SVG foreignObject and convert to image
-  const node = document.getElementById('agendaGrid');
-  const serializer = new XMLSerializer();
-  const html = `
-    <svg xmlns='http://www.w3.org/2000/svg' width='1200' height='800'>
-      <foreignObject width='100%' height='100%'>
-        <div xmlns='http://www.w3.org/1999/xhtml' style='font-family:Segoe UI; color: white;'>
-          ${node.outerHTML}
+    /* Etiquetas: limitar tamaño y evitar overflow */
+    .study-label,
+    .exam-label{
+      display: block;
+      padding: 4px 8px;
+      border-radius: 6px;
+      margin: 6px 0 0 0;
+      color: #fff;
+      font-size: 0.85rem;
+      cursor: default;
+      position: relative;
+      max-height: 3.6rem; /* límite de alto */
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: normal;
+      line-height: 1.05;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+    }
+    .exam-label{ font-size: .9rem; padding: 5px 8px; }
+
+    .tooltip {
+      position: absolute;
+      background-color: rgba(0,0,0,0.85);
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      top: 100%;
+      left: 0;
+      z-index: 10;
+      display: none;
+      white-space: pre-line;
+      box-shadow: 0 8px 30px rgba(0,0,0,.4);
+    }
+
+    /* Estilo para el día actual: oscuro + borde brillante */
+    .day.today {
+      border: 2px solid var(--today-glow);
+      box-shadow: 0 8px 30px rgba(99,102,241,0.12), 0 0 18px rgba(99,102,241,0.06) inset;
+      transform: translateY(-4px);
+    }
+    .date-number {
+      color: #cbd5e1;
+      font-weight: 600;
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.02);
+      font-size: 0.95rem;
+    }
+    .day.today .date-number {
+      color: #e6eefc;
+      font-weight: 700;
+      background: linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.04));
+    }
+
+    /* Mover las etiquetas para que aparezcan después del número (flex) */
+    .cal-number-row { display:flex; align-items:center; gap:.4rem; margin-bottom:6px; }
+
+    /* ====== Agenda semanal (grilla) ====== */
+    .agenda-wrap{ display:none; }
+    .agenda-toolbar{ display:flex; gap:.5rem; align-items:center; padding:.6rem .85rem; background:var(--cardAlt); border-top:1px solid rgba(148,163,184,0.12) }
+    .agenda {
+      display: grid;
+      grid-template-columns: 80px repeat(7, 1fr);
+      width: 100%;
+      max-height: 70vh;
+      overflow: auto;
+      position: relative;
+    }
+    .agenda .hour-cell{ position: relative; height: var(--hourHeight); border-bottom: 1px dashed rgba(148,163,184,0.18); padding-left: .5rem; color:#94a3b8; font-size:.85rem }
+    .agenda .day-col{ position: relative; border-left: 1px solid var(--border); }
+    .agenda .day-col-inner{ position: relative; height: calc(var(--minutesRange) * var(--pxPerMin)); }
+    .agenda .time-guideline{ position:absolute; left:0; right:0; height:1px; background: rgba(148,163,184,0.12); }
+    .class-block{ position:absolute; left:6px; right:6px; border-radius:10px; color:#fff; padding:6px 8px; font-size:.85rem; border:1px solid rgba(0,0,0,.25); box-shadow: 0 6px 18px rgba(0,0,0,.25); cursor:pointer }
+    .class-block .small{ font-size:.75rem; opacity:.95 }
+
+    /* ====== Modales base ====== */
+    .modal { position: fixed; inset: 0; background-color: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 40; padding: 1rem; }
+    .modal-content { background-color: #0f172a; padding: 1rem; border-radius: 14px; width: 420px; max-height: 92vh; overflow-y: auto; box-shadow: var(--shadow); border: 1px solid rgba(148,163,184,0.18); }
+    .modal-content h3 { margin: .25rem 0 1rem }
+    .modal-content label { display: block; margin-bottom: 0.35rem; font-size:.95rem; color:#e2e8f0; }
+    .modal-content input, .modal-content textarea, .modal-content select { width: 100%; margin-bottom: 1rem; padding: 0.6rem .7rem; border-radius: 8px; border: 1px solid rgba(148,163,184,0.18); background-color: #0b1220; color: white; outline: none; }
+    .modal-content textarea{ resize: vertical }
+    .modal-content button { background: linear-gradient(90deg, var(--accent1), var(--accent2)); border: none; padding: 0.6rem .8rem; color: white; cursor: pointer; border-radius: 10px; width: 100%; font-size: 1rem; margin-bottom: 0.6rem; box-shadow: 0 2px 12px rgba(37,99,235,.35); }
+    .modal-content button.cancel { background: #475569; box-shadow:none }
+
+    /* ====== Modal de ayuda ====== */
+    #helpModal .modal-content { width: 560px; }
+    .help-list ol{ padding-left: 1.2rem; }
+    .help-list h4{ margin:.8rem 0 .3rem; color:#e5e7eb }
+    .help-badge{ display:inline-block; background:#1f2937; color:#e5e7eb; padding:.12rem .5rem; border-radius:999px; font-size:.75rem; margin-left:.4rem }
+
+    /* ====== Modal Planes ====== */
+    #plansModal .modal-content{ width: 680px; }
+    .plans-grid{
+      display:grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap:.6rem;
+    }
+    .plan-item{
+      display:flex; align-items:center; justify-content:space-between;
+      padding:.7rem .9rem; border-radius:10px;
+      background:#0b1220; border:1px solid rgba(148,163,184,.18);
+    }
+    .plan-actions{ display:flex; gap:.4rem; align-items:center }
+    .plan-item a, .plan-item button{
+      border:none; border-radius:8px; padding:.45rem .6rem; cursor:pointer;
+    }
+    .plan-item a{
+      background: linear-gradient(90deg, var(--accent1), var(--accent2));
+      color:#fff; text-decoration:none;
+    }
+    .plan-item button.lock{
+      background:#475569; color:#e5e7eb;
+    }
+
+    /* ====== Footer versión ====== */
+    footer{
+      max-width:1100px;
+      margin: 10px auto 30px;
+      padding: 8px 12px;
+      color:#94a3b8;
+      text-align:right;
+      font-size:.95rem;
+      opacity:.9;
+    }
+
+    /* ====== Móvil: mejoras sin tocar escritorio visualmente ====== */
+    @media (max-width: 768px) {
+      .toolbar {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap:.4rem;
+      }
+      .left{ flex: 0 0 auto }
+      .right{ flex: 1 0 auto }
+      .btn{ padding:.48rem .7rem; font-size:.92rem }
+      .modal-content{ width:100%; max-height: 88vh; border-radius: 12px }
+      #examModal .modal-content, #helpModal .modal-content, #plansModal .modal-content{ width:100% }
+      .agenda{ max-height: 68vh }
+      .day, .day-name{ min-height: 92px; font-size:.95rem }
+      /* permitir scroll horizontal para mantener proporción de celdas */
+      .days{ min-width: 760px; padding: 8px }
+      .card{ overflow-x: auto }
+      .plans-grid{ grid-template-columns: 1fr; }
+      .plans-fab{ top: 10px; right: 10px; padding:.55rem .8rem }
+      /* etiquetas más compactas en móvil */
+      .study-label, .exam-label { font-size:0.78rem; max-height:3.2rem; padding:3px 6px; margin-top:4px }
+      .date-number { font-size:0.9rem; padding:2px 6px }
+      .day.today { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(99,102,241,0.10) }
+    }
+
+    /* pequeño panel para mostrar errores en pantalla (debug) */
+    #debugPanel{
+      position: fixed;
+      left: 12px;
+      bottom: 12px;
+      z-index: 120;
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      display:none;
+      max-width: 360px;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body class="study-theme">
+  <header>
+    📚 Calendario de Estudio
+  </header>
+
+  <!-- Botón fijo: Plan de estudios -->
+  <button class="plans-fab" onclick="openPlansModal()" title="Plan de estudios">
+    📚 Plan de estudios
+  </button>
+
+  <div class="container">
+    <div class="card">
+      <div class="toolbar">
+        <div class="left">
+          <!-- Navegación de meses -->
+          <button class="btn" onclick="changeMonth(-1)" title="Mes anterior">◀</button>
+          <span id="monthYear"></span>
+          <button class="btn" onclick="changeMonth(1)" title="Mes siguiente">▶</button>
         </div>
-      </foreignObject>
-    </svg>`;
-  const blob = new Blob([html], {type:'image/svg+xml;charset=utf-8'});
-  const url = URL.createObjectURL(blob);
-  const img = new Image();
-  img.onload = ()=>{
-    const canvas = document.createElement('canvas'); canvas.width = img.width; canvas.height = img.height;
-    const ctx = canvas.getContext('2d'); ctx.drawImage(img,0,0);
-    const data = canvas.toDataURL('image/png');
-    const a = document.createElement('a'); a.href = data; a.download = 'agenda.png'; a.click();
-    URL.revokeObjectURL(url);
-  };
-  img.src = url;
-}
+        <div class="right">
+          <!-- Botón ayuda -->
+          <button class="btn" id="btnHelp" onclick="openHelpModal()" title="Cómo usar la página">❓ Ayuda</button>
+          <!-- Botones principales -->
+          <button class="btn" onclick="openSubjectsModal()">🎨 Materias</button>
+          <button class="btn tab-btn" id="btnAgenda" onclick="showAgenda()">🗓️ Agenda</button>
+          <button class="btn tab-btn" id="btnExams" onclick="showExams()">📝 Parciales</button>
+          <button class="btn tab-btn active-tab" id="btnStudy" onclick="showStudy()">📒 Estudio</button>
+        </div>
+      </div>
 
-/* ========= Exams / Finals ========= */
-function openExamModal(){
-  renderSubjectsOptions('examSubjectSelect');
-  document.getElementById('examDate').value = toDateInputValue(new Date());
-  document.getElementById('examTitle').value = '';
-  document.getElementById('modalExam').style.display = 'flex';
-}
-function saveExam(){
-  const date = document.getElementById('examDate').value;
-  const subject = document.getElementById('examSubjectSelect').value;
-  const title = document.getElementById('examTitle').value.trim();
-  if(!date || !subject || !title) return alert('Completar campos');
-  exams.push({ date, subject, title, createdAt:new Date().toISOString() });
-  saveAllLocal(); closeModal('modalExam'); renderExamsList(); updateWidgets();
-}
-function renderExamsList(){
-  const el = document.getElementById('examsList'); el.innerHTML = '';
-  if(exams.length===0) el.innerHTML = '<div class="muted">Sin parciales registrados</div>';
-  exams.slice().sort((a,b)=> new Date(a.date) - new Date(b.date)).forEach((e,i)=>{
-    const div = document.createElement('div'); div.className='card'; div.style.display='flex'; div.style.justifyContent='space-between'; div.style.alignItems='center'; div.style.marginTop='8px';
-    div.innerHTML = `<div><strong>${e.title}</strong><div class="muted">${e.subject} • ${e.date}</div></div>
-                     <div><button class="btn" onclick="removeExam(${i})">Eliminar</button></div>`;
-    el.appendChild(div);
-  });
-}
-function removeExam(i){ if(!confirm('Eliminar?')) return; exams.splice(i,1); saveAllLocal(); renderExamsList(); updateWidgets(); }
-function planFinals(){ alert('Abrirías un panel para planificar estudio intensivo — pendiente implementar cuadro detallado.'); }
+      <!-- ===== Vista: Calendario Estudio ===== -->
+      <div id="studyView">
+        <div class="days" id="calendarDays"></div>
+      </div>
 
-/* ========= Forums (local) ========= */
-function openForumsModal(){ showView('forums'); }
-function showForum(forId){
-  const area = document.getElementById('forumArea'); area.innerHTML = '';
-  const posts = (forumPosts[forId] || []).slice().reverse();
-  const createBtn = document.createElement('div'); createBtn.style.display='flex'; createBtn.style.justifyContent='space-between'; createBtn.style.alignItems='center';
-  createBtn.innerHTML = `<div><strong>${forId}</strong></div><div><button class="btn" onclick="openForumPostModal('${forId}')">➕ Nuevo</button></div>`;
-  area.appendChild(createBtn);
-  if(posts.length===0){ area.appendChild(document.createElement('div')).textContent = 'Sin publicaciones'; return; }
-  posts.forEach(p=>{
-    const div = document.createElement('div'); div.className='card'; div.style.marginTop='8px';
-    div.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center">
-      <div><strong>${p.title}</strong><div class="muted">${p.tag || ''} • ${p.author || 'anon'} • ${p.createdAt.split('T')[0]}</div></div>
-      <div><button class="btn ghost" onclick="replyToPost('${forId}','${p.id}')">Responder</button></div>
-    </div><div style="margin-top:6px">${p.content}</div>`;
-    area.appendChild(div);
-  });
-}
-function openForumPostModal(forId){
-  document.getElementById('modalForumTitle').textContent = 'Publicar en ' + forId;
-  document.getElementById('forumPostTitle').value = '';
-  document.getElementById('forumPostContent').value = '';
-  document.getElementById('forumPostTag').value = forId;
-  document.getElementById('modalForum').dataset.forum = forId;
-  document.getElementById('modalForum').style.display = 'flex';
-}
-function saveForumPost(){
-  const forId = document.getElementById('modalForum').dataset.forum || 'general';
-  const title = document.getElementById('forumPostTitle').value.trim();
-  const content = document.getElementById('forumPostContent').value.trim();
-  const tag = document.getElementById('forumPostTag').value.trim();
-  if(!title || !content) return alert('Completar campos');
-  const post = { id: 'p'+Date.now(), title, content, tag, author: currentUser ? currentUser.email : 'anon', createdAt: new Date().toISOString() };
-  if(!forumPosts[forId]) forumPosts[forId]=[];
-  forumPosts[forId].push(post);
-  saveAllLocal(); closeModal('modalForum'); showForum(forId);
-}
-function replyToPost(forId, postId){ const ans = prompt('Responder:'); if(!ans) return; const post = (forumPosts[forId]||[]).find(p=>p.id===postId); if(!post._replies) post._replies=[]; post._replies.push({text:ans,author:currentUser?currentUser.email:'anon',at:new Date().toISOString()}); saveAllLocal(); showForum(forId); }
+      <!-- ===== Vista: Agenda semanal ===== -->
+      <div id="agendaView" class="agenda-wrap">
+        <div class="agenda-toolbar">
+          <strong style="color:#cbd5e1">Agenda semanal (08:00 – 23:00)</strong>
+          <span style="flex:1"></span>
+          <button class="btn" onclick="openAgendaModal()">➕ Añadir clase</button>
+        </div>
+        <div id="agendaGrid" class="agenda"></div>
+      </div>
 
-/* ========= Chat / Threads ========= */
-function openNewThread(){ document.getElementById('modalChatNew').style.display='flex'; }
-function createThread(){
-  const withWho = document.getElementById('chatWith').value.trim();
-  const init = document.getElementById('chatInit').value.trim();
-  if(!withWho || !init) return alert('Completá campos');
-  const id = 't'+Date.now();
-  threads.push({ id, participants:[withWho, currentUser ? currentUser.email : 'anon'], messages:[{from: currentUser ? currentUser.email : 'anon', text:init, at:new Date().toISOString()}] });
-  saveAllLocal(); closeModal('modalChatNew'); renderChatArea();
-}
-function renderChatArea(){
-  const area = document.getElementById('chatArea'); area.innerHTML = '';
-  if(threads.length===0) area.innerHTML = '<div class="muted">No hay chats</div>';
-  threads.forEach(t=>{
-    const div = document.createElement('div'); div.className='card'; div.style.marginTop='8px'; div.style.padding='8px';
-    const last = t.messages[t.messages.length-1];
-    div.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center">
-      <div><strong>${t.participants.join(', ')}</strong><div class="muted">${last ? last.text.substring(0,60):''}</div></div>
-      <div><button class="btn" onclick="openThread('${t.id}')">Abrir</button></div>
-    </div>`;
-    area.appendChild(div);
-  });
-}
-function openThread(id){
-  const t = threads.find(x=>x.id===id);
-  if(!t) return;
-  const win = window.open('', '_blank', 'width=420,height=640');
-  win.document.write(`<html><head><title>Chat</title><style>body{background:#071428;color:#fff;font-family:segui;} .msg{padding:8px;margin:6px;border-radius:8px} .me{background:#123456}</style></head><body>
-    <h3>Chat con ${t.participants.join(', ')}</h3><div id="msgs"></div><div><textarea id="m" style="width:100%;height:80px"></textarea><button id="s">Enviar</button></div>
-    <script>
-      const msgs = ${JSON.stringify(t.messages)};
-      function render(){ const el = document.getElementById('msgs'); el.innerHTML=''; msgs.forEach(m=>el.innerHTML += '<div class="msg"><strong>'+m.from+'</strong><div>'+m.text+'</div><div style="font-size:0.8rem;color:gray">'+m.at+'</div></div>'); }
-      render();
-      document.getElementById('s').addEventListener('click', ()=>{ const m=document.getElementById('m').value; if(!m) return; msgs.push({from: '${currentUser ? currentUser.email : 'anon'}', text:m, at:new Date().toISOString()}); render(); document.getElementById('m').value=''; });
-    </script></body></html>`);
-});
+      <!-- ===== Vista: Calendario Parciales ====== -->
+      <div id="examsView" style="display:none">
+        <div class="days" id="examCalendarDays"></div>
+      </div>
+    </div>
+  </div>
 
-/* ========= Simple Users (local) ========= */
-function openLoginModal(){ document.getElementById('modalLogin').style.display='flex'; }
-function registerUser(){
-  const email = document.getElementById('loginEmail').value.trim();
-  const name = document.getElementById('loginName').value.trim();
-  const role = document.getElementById('loginRole').value;
-  if(!email || !name) return alert('Completar');
-  if(users.some(u=>u.email===email)) return alert('Usuario ya existe');
-  const u = { email, name, role, createdAt:new Date().toISOString() };
-  users.push(u); currentUser = u; saveAllLocal(); closeModal('modalLogin'); updateUserUI();
-}
-function loginUser(){
-  const email = document.getElementById('loginEmail').value.trim();
-  const u = users.find(x=>x.email===email);
-  if(!u) return alert('No existe, registrate');
-  currentUser = u; saveAllLocal(); closeModal('modalLogin'); updateUserUI();
-}
-function logout(){ currentUser = null; saveAllLocal(); updateUserUI(); }
-function updateUserUI(){
-  document.getElementById('userGreeting').textContent = currentUser ? `${currentUser.name} (${currentUser.role})` : 'Sin sesión';
-}
-updateUserUI();
+  <footer>Versión 7.7</footer>
 
-/* ========= Notifications (local) ========= */
-function requestNotifyPerm(){ if(!('Notification' in window)) return alert('No soportado'); Notification.requestPermission().then(p=>alert('Permiso: '+p)); }
-function maybeNotify(msg, dateKey){
-  // Simple immediate notification
-  if(Notification && Notification.permission === 'granted'){
-    new Notification('Calendario', { body: msg });
-  }
-  // schedule is more complex (would need Service Worker push or alarms)
-}
+  <!-- ===== Modal Estudio ===== -->
+  <div id="modal" class="modal">
+    <div class="modal-content">
+      <h3 id="modalTitle">Agregar Estudio</h3>
+      <div id="recordList" class="record-list" style="display:none; max-height:220px; overflow:auto; border:1px solid rgba(71,85,105,.7); padding:6px; border-radius:8px; background:#0b1220"></div>
 
-/* ========= Backup / Export / Import ========= */
-function exportAll(){
-  const data = {
-    subjects, tasks, exams, forumPosts, users, agendaData, threads, timestamp:new Date().toISOString()
-  };
-  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'calendario_backup_'+Date.now()+'.json'; a.click();
-}
-function importAll(){
-  const inp = document.createElement('input'); inp.type='file'; inp.accept='.json';
-  inp.onchange = (e)=>{
-    const f = e.target.files[0]; if(!f) return;
-    const reader = new FileReader();
-    reader.onload = ()=> {
-      try{
-        const d = JSON.parse(reader.result);
-        if(confirm('RESTORAR datos desde archivo? Esto sobreescribirá tus datos locales.')){
-          subjects = d.subjects || []; tasks = d.tasks || {}; exams = d.exams || []; forumPosts = d.forumPosts || {}; users = d.users || []; agendaData = d.agendaData || {}; threads = d.threads || [];
-          saveAllLocal(); alert('Importado'); renderCalendar();
-        }
-      }catch(err){ alert('Error al leer archivo'); }
-    };
-    reader.readAsText(f);
-  };
-  inp.click();
-}
-function backupNow(){
-  saveAllLocal(); exportAll();
-}
-function startAutoBackup(){
-  const mins = parseInt(document.getElementById('autoBackupMins').value) || 60;
-  if(autoBackupTimer) clearInterval(autoBackupTimer);
-  if(mins>0) autoBackupTimer = setInterval(()=>{ exportAll(); }, mins*60*1000);
-  alert('Auto-backup configurado cada '+mins+' minutos (si mins=0 queda deshabilitado)');
-}
+      <label>Horas</label>
+      <input type="number" id="studyHours" min="0" placeholder="Ej: 1" />
+      <label>Minutos</label>
+      <input type="number" id="studyMinutes" min="0" max="59" placeholder="Ej: 30" />
+      <label>Tema estudiado</label>
+      <textarea id="studyTopic" rows="2" placeholder="Tema..."></textarea>
+      <label>Materia(s)</label>
+      <select id="subject" multiple size="6"></select>
+      <small style="display:block;margin-top:-.6rem;color:#93c5fd;margin-bottom:.8rem">Sostené Ctrl/Cmd para seleccionar varias.</small>
 
-/* ========= Settings: palette + fonts ========= */
-function savePalette(){
-  const a1 = document.getElementById('accent1').value;
-  const a2 = document.getElementById('accent2').value;
-  document.documentElement.style.setProperty('--accent1', a1);
-  document.documentElement.style.setProperty('--accent2', a2);
-  localStorage.setItem('palette_v2', JSON.stringify({a1,a2}));
-}
-function loadPalette(){
-  const p = JSON.parse(localStorage.getItem('palette_v2') || 'null');
-  if(p){ document.getElementById('accent1').value = p.a1; document.getElementById('accent2').value = p.a2; document.documentElement.style.setProperty('--accent1', p.a1); document.documentElement.style.setProperty('--accent2', p.a2); }
-}
-function applyFont(){
-  const f = document.getElementById('fontSelect').value;
-  document.body.style.fontFamily = f;
-  localStorage.setItem('font_v2', f);
-}
-function applyJustify(){
-  const j = document.getElementById('justifySelect').value;
-  document.body.style.textAlign = j;
-  localStorage.setItem('justify_v2', j);
-}
-function loadAppearance(){
-  const f = localStorage.getItem('font_v2'); if(f) document.body.style.fontFamily = f;
-  const j = localStorage.getItem('justify_v2'); if(j) document.body.style.textAlign = j;
-  loadPalette();
-}
+      <button id="saveBtn" onclick="saveStudy()">Guardar</button>
+      <button class="cancel" onclick="closeModal()">Cancelar</button>
+    </div>
+  </div>
 
-/* ========= Simple saving / init ========= */
-function changeMonth(diff){
-  currentDate.setMonth(currentDate.getMonth() + diff);
-  renderCalendar();
-}
-function init(){
-  // init default structures
-  if(!forumPosts) forumPosts = {};
-  if(!agendaData) agendaData = {};
-  loadAppearance();
-  renderSubjectsOptions();
-  renderCalendar();
-  renderAgenda();
-  renderExamsList();
-  updateWidgets();
-  // register service worker
-  if('serviceWorker' in navigator){
-    try{
-      navigator.serviceWorker.register('./sw.js').catch(err=>console.log('SW reg failed (external file missing):',err));
-      // as fallback attempt to register via blob (in some contexts)
-    }catch(e){}
-  }
-}
-init();
+  <!-- ===== Modal Materias ===== -->
+  <div id="subjectsModal" class="modal">
+    <div class="modal-content">
+      <h3 id="subjectsTitle">Gestionar Materias</h3>
 
-/* ========= Widgets updates ========= */
-function updateWidgets(){
-  // next exam
-  const upcoming = exams.slice().filter(e=> new Date(e.date) >= new Date()).sort((a,b)=> new Date(a.date)-new Date(b.date))[0];
-  document.getElementById('nextExamWidget').textContent = upcoming ? `${upcoming.title} • ${upcoming.date}` : 'Próximo parcial: —';
-  // today hours (sum tasks that are type Estudio)
-  const key = toDateInputValue(new Date());
-  const dayTasks = tasks[key] || [];
-  let hours = 0;
-  dayTasks.forEach(t=>{ if(t.type.toLowerCase().includes('estudio') || t.type.toLowerCase().includes('tp') ) hours += (t.horas||0); });
-  document.getElementById('todayStudyWidget').textContent = `Horas hoy: ${hours}`;
-  const pending = Object.values(tasks).flat().filter(t=>!t.done).length;
-  document.getElementById('pendingTasksWidget').textContent = `Tareas pendientes: ${pending}`;
-}
+      <div id="subjectsList"></div>
 
-/* ========= Forums root ========= */
-function renderForumsRoot(){ showForum('market'); }
+      <hr style="border:none;border-top:1px solid rgba(148,163,184,.25);margin:.8rem 0">
 
-/* ========= Simple Import for your old code pieces ========= */
-/* If querés que adapte más código tuyo o añadir cosas como export PDF con jsPDF,
-   integración con backend, login seguro, notificaciones push o sincronización con Guaraní,
-   lo hacemos en la siguiente fase. Esto es un prototipo completo frontal. */
+      <div class="row" style="display:flex; gap:.5rem; align-items:center">
+        <input type="text" id="subjectName" placeholder="Nombre de materia">
+        <input type="color" id="customColor" value="#3b82f6" title="Color personalizado">
+      </div>
 
-/* ========= Misc helpers for user ========== */
-function openEditTaskByKey(key, idx){ openEditTask(key, idx); }
+      <div class="swatches" id="swatches" style="display:grid; grid-template-columns: repeat(6, 1fr); gap:.4rem; margin:.4rem 0 .6rem"></div>
 
-/* ========= Minimal service worker generator (fallback) ========= */
-/* Note: we attempted to register ./sw.js above; if it isn't present, we can create a simple one via blob */
-if('serviceWorker' in navigator){
-  (async ()=>{
-    try{
-      const swCode = `
-      const CACHE = 'cal-cache-v1';
-      self.addEventListener('install', e=> {
-        self.skipWaiting();
-        e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['/'])).catch(()=>{}));
+      <div class="row" style="display:flex; gap:.5rem; align-items:center">
+        <button id="addUpdateBtn" onclick="handleAddOrUpdateSubject()">Agregar materia</button>
+        <button class="cancel" onclick="resetSubjectsForm()">Limpiar</button>
+      </div>
+
+      <button class="cancel" onclick="closeSubjectsModal()">Cerrar</button>
+    </div>
+  </div>
+
+  <!-- ===== Modal Agenda (añadir/editar clase) ===== -->
+  <div id="agendaModal" class="modal">
+    <div class="modal-content">
+      <h3 id="agendaModalTitle">Añadir clase</h3>
+      <label>Día</label>
+      <select id="agendaDay"></select>
+      <label>Materia</label>
+      <select id="agendaSubject"></select>
+      <label>Aula</label>
+      <input type="text" id="agendaRoom" placeholder="Ej: Aula 204 / Lab"/>
+      <div style="display:flex; gap:.5rem">
+        <div style="flex:1">
+          <label>Inicio</label>
+          <input type="time" id="agendaStart" min="08:00" max="23:00" step="60" />
+        </div>
+        <div style="flex:1">
+          <label>Fin</label>
+          <input type="time" id="agendaEnd" min="08:01" max="23:00" step="60" />
+        </div>
+      </div>
+      <button onclick="saveAgendaItem()">Guardar</button>
+      <button class="cancel" onclick="closeAgendaModal()">Cancelar</button>
+      <button id="deleteAgendaBtn" class="cancel" style="display:none; background:var(--danger)" onclick="deleteAgendaItem()">Eliminar</button>
+    </div>
+  </div>
+
+  <!-- ===== Modal Parciales (añadir/editar) ===== -->
+  <div id="examModal" class="modal">
+    <div class="modal-content">
+      <h3 id="examModalTitle">Nuevo parcial</h3>
+      <div id="examDateLabel" style="margin-bottom:.5rem; color:#cbd5e1"></div>
+      <label>Materia</label>
+      <select id="examSubject"></select>
+      <label>Tema / Unidad</label>
+      <input type="text" id="examTopic" placeholder="Ej: Integrales Múltiples" />
+      <label>Observaciones</label>
+      <textarea id="examNotes" rows="3" placeholder="Aula, modalidad, profesor, etc."></textarea>
+      <button onclick="saveExamItem()">Guardar</button>
+      <button class="cancel" onclick="closeExamModal()">Cancelar</button>
+      <button id="deleteExamBtn" class="cancel" style="display:none; background:var(--danger)" onclick="deleteExamItem()">Eliminar</button>
+    </div>
+  </div>
+
+  <!-- ===== Modal Ayuda ===== -->
+  <div id="helpModal" class="modal">
+    <div class="modal-content">
+      <h3>Cómo usar esta página</h3>
+
+      <!-- Aviso para usuarios móviles (recomendación sitio de escritorio) -->
+      <div style="background:#1f2937; padding:.6rem; border-radius:8px; margin-bottom:.6rem; color:#f8fafc">
+        <strong>⚠️ Aviso:</strong>
+        <div style="margin-top:.35rem; color:#cfe3ff">
+          Si estás usando esta página desde un celular, te recomendamos activar la opción <em>“Sitio para computadoras”</em> (o "Ver como escritorio") en tu navegador para una mejor visualización.
+        </div>
+      </div>
+
+      <div class="help-list" style="color:#e2e8f0; line-height:1.45">
+        <ol>
+          <li>
+            <h4>Crear materias <span class="help-badge">Obligatorio antes de usar</span></h4>
+            Abrí <strong>🎨 Materias</strong>, añadí el <em>nombre</em> y elegí un <em>color</em>. Podés editarlas o borrarlas cuando quieras.
+          </li>
+          <li>
+            <h4>Registrar estudio (📒 Estudio)</h4>
+            Tocá un día del calendario para <em>agregar horas/minutos, tema y materia</em>. Se pueden cargar varias materias por día. Las etiquetas muestran un <em>tooltip</em> con tiempo y tema.
+          </li>
+          <li>
+            <h4>Planificar la semana (🗓️ Agenda)</h4>
+            En la vista <strong>Agenda</strong> añadís <em>clases con horario</em> por día (08:00–23:00). Los bloques se pintan con el color de la materia.
+          </li>
+          <li>
+            <h4>Gestionar parciales (📝 Parciales)</h4>
+            Calendario separado para <em>exámenes</em>. Hacé clic en la fecha para cargar <em>materia, tema y observaciones</em>. No interfiere con el calendario de estudio.
+          </li>
+          <li>
+            <h4>Gestión de materias</h4>
+            Recordá que las materias pueden editarse y eliminarse desde <strong>🎨 Materias</strong>. Si eliminás una materia, los registros existentes permanecerán pero la materia ya no aparecerá en la lista para seleccionar.
+          </li>
+        </ol>
+      </div>
+      <div style="display:flex; gap:.5rem; margin-top:.6rem">
+        <button class="cancel" onclick="closeHelpModal()">Cerrar</button>
+        <button onclick="ackHelpClose()" style="background:linear-gradient(90deg,var(--accent1),var(--accent2));color:white;border-radius:8px;padding:.5rem .8rem;border:none">Entendido</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Modal Planes de estudio ===== -->
+  <div id="plansModal" class="modal">
+    <div class="modal-content">
+      <h3>Planes de estudio</h3>
+      <div class="plans-grid">
+        <!-- Filas de carreras -->
+        <div class="plan-item">
+          <div>Ingeniería Aeronáutica</div>
+          <div class="plan-actions"><button class="lock" onclick="lockedPlan()">🔒 No disponible</button></div>
+        </div>
+        <div class="plan-item">
+          <div>Ingeniería Ambiental</div>
+          <div class="plan-actions"><a href="https://xrickbrizz.github.io/Plan-Ing-Ambiental/" target="_blank" rel="noopener">Abrir</a></div>
+        </div>
+        <div class="plan-item">
+          <div>Ingeniería Biomédica</div>
+          <div class="plan-actions"><button class="lock" onclick="lockedPlan()">🔒 No disponible</button></div>
+        </div>
+        <div class="plan-item">
+          <div>Ingeniería Civil</div>
+          <div class="plan-actions"><a href="https://xrickbrizz.github.io/Malla-Ing.-Civil-UNC/" target="_blank" rel="noopener">Abrir</a></div>
+        </div>
+        <div class="plan-item">
+          <div>Ingeniería Electromecánica</div>
+          <div class="plan-actions"><button class="lock" onclick="lockedPlan()">🔒 No disponible</button></div>
+        </div>
+        <div class="plan-item">
+          <div>Ingeniería Electrónica</div>
+          <div class="plan-actions"><button class="lock" onclick="lockedPlan()">🔒 No disponible</button></div>
+        </div>
+        <div class="plan-item">
+          <div>Ingeniería en Agrimensura</div>
+          <div class="plan-actions"><button class="lock" onclick="lockedPlan()">🔒 No disponible</button></div>
+        </div>
+        <div class="plan-item">
+          <div>Ingeniería en Computación</div>
+          <div class="plan-actions"><a href="https://xrickbrizz.github.io/Plan-Ing.Computaci-n/" target="_blank" rel="noopener">Abrir</a></div>
+        </div>
+        <div class="plan-item">
+          <div>Ingeniería Industrial</div>
+          <div class="plan-actions"><button class="lock" onclick="lockedPlan()">🔒 No disponible</button></div>
+        </div>
+        <div class="plan-item">
+          <div>Ingeniería Mecánica</div>
+          <div class="plan-actions"><button class="lock" onclick="lockedPlan()">🔒 No disponible</button></div>
+        </div>
+        <div class="plan-item">
+          <div>Ingeniería Química</div>
+          <div class="plan-actions"><button class="lock" onclick="lockedPlan()">🔒 No disponible</button></div>
+        </div>
+      </div>
+      <button class="cancel" onclick="closePlansModal()">Cerrar</button>
+    </div>
+  </div>
+
+  <!-- panel debug -->
+  <div id="debugPanel"></div>
+
+  <script>
+    /********** Config & Estado global **********/
+    const COLOR_PALETTE = [
+      "#3b82f6","#10b981","#f59e0b","#ef4444","#a855f7","#14b8a6",
+      "#8b5cf6","#22c55e","#f97316","#eab308","#06b6d4","#ec4899"
+    ];
+
+    // Safe localStorage parse helper (evita que JSON malformado rompa la app)
+    function safeGetJSON(key, defaultValue){
+      try {
+        const raw = localStorage.getItem(key);
+        if (raw === null || raw === undefined) return defaultValue;
+        return JSON.parse(raw);
+      } catch (e) {
+        console.warn(`safeGetJSON: parse error for key "${key}", returning default.`, e);
+        return defaultValue;
+      }
+    }
+    function safeSetJSON(key, value){
+      try { localStorage.setItem(key, JSON.stringify(value)); }
+      catch(e){ console.warn('safeSetJSON error', e); }
+    }
+
+    let subjects = safeGetJSON('subjects', []);
+
+    // Estudio y Parciales comparten el mismo mes
+    let currentDate = new Date(2025, 7); // Agosto 2025 (0=enero)
+    let selectedDate = null;
+    let editingRecord = null;
+
+    // Agenda (08:00 a 23:00)
+    const minutesStart = 8*60; // 08:00
+    const minutesEnd = 23*60; // 23:00
+    const minutesRange = minutesEnd - minutesStart; // 900
+    const pxPerMin = 1.2; // alto total ~1080px
+    // CSS custom props (minutesRange sin unidad funciona dentro de calc)
+    document.documentElement.style.setProperty('--minutesRange', minutesRange);
+    document.documentElement.style.setProperty('--pxPerMin', pxPerMin + 'px');
+    document.documentElement.style.setProperty('--hourHeight', (60*pxPerMin) + 'px');
+
+    let agendaData = safeGetJSON('agendaData', {});
+    const dayKeys = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo'];
+    const dayLabels = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+
+    // Parciales
+    let examDateKey = null; // YYYY-MM-DD actualmente abierto en modal
+    let examEditingIndex = null;
+
+    /********** Utilidades **********/
+    function saveSubjects(){ safeSetJSON('subjects', subjects); }
+    function getSubjectColor(name){ const s = (subjects||[]).find(x => x.name === name); return s ? s.color : '#888'; }
+    function formatDateKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+
+    // timeToMinutes seguro: acepta 'HH:MM', 'H:MM', o devuelve null si inválido
+    function timeToMinutes(t){
+      if (!t || typeof t !== 'string') return null;
+      const parts = t.split(':');
+      if (parts.length < 2) return null;
+      const h = Number(parts[0]);
+      const m = Number(parts[1]);
+      if (Number.isFinite(h) && Number.isFinite(m) && h >= 0 && m >= 0 && m < 60) return h*60 + m;
+      return null;
+    }
+
+    function clamp(val, min, max){ return Math.max(min, Math.min(max, val)); }
+
+    function setTheme(theme){
+      document.body.classList.remove('study-theme','agenda-theme','exams-theme');
+      if (theme==='agenda') document.body.classList.add('agenda-theme');
+      else if (theme==='exams') document.body.classList.add('exams-theme');
+      else document.body.classList.add('study-theme');
+    }
+
+    // Tabs: activar visualmente según vista
+    function updateActiveTab(view){
+      const m = {
+        study: document.getElementById('btnStudy'),
+        agenda: document.getElementById('btnAgenda'),
+        exams: document.getElementById('btnExams')
+      };
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active-tab'));
+      if (view && m[view]) m[view].classList.add('active-tab');
+    }
+
+    /********** ==== VISTA: ESTUDIO ==== **********/
+    function renderSubjectsSelect() {
+      const select = document.getElementById('subject');
+      if (!select) return;
+      select.innerHTML = '';
+      if (!Array.isArray(subjects) || subjects.length === 0){
+        const opt = document.createElement('option');
+        opt.disabled = true; opt.selected = true;
+        opt.textContent = 'Primero crea materias en 🎨 Materias';
+        select.appendChild(opt);
+        return;
+      }
+      subjects.forEach(sub => {
+        const opt = document.createElement('option');
+        opt.value = sub.name;
+        opt.textContent = sub.name;
+        select.appendChild(opt);
       });
-      self.addEventListener('fetch', e=>{
-        e.respondWith(caches.match(e.request).then(r=> r || fetch(e.request)));
-      });`;
-      const blob = new Blob([swCode], {type:'application/javascript'});
-      const url = URL.createObjectURL(blob);
-      navigator.serviceWorker.register(url).catch(err=>console.log('SW blob reg error',err));
-    }catch(e){ console.log('sw blob creation failed',e); }
-  })();
-}
+    }
 
-/* ========= Export / Import wrapper used by sidebar ========= */
-function exportAll(){
-  const data = { subjects, tasks, exams, forumPosts, users, agendaData, threads, timestamp:new Date().toISOString() };
-  const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'calendario_backup.json'; a.click();
-}
-function importAll(){ importAllPrompt(); } // alias to earlier function name mismatch
-function importAllPrompt(){ const f = document.createElement('input'); f.type='file'; f.accept='.json'; f.onchange = (e)=>{ const file = e.target.files[0]; if(!file) return; const r = new FileReader(); r.onload = ()=>{ try{ const d = JSON.parse(r.result); if(confirm('Restaurar?')){ subjects = d.subjects||[]; tasks = d.tasks||{}; exams = d.exams||[]; forumPosts=d.forumPosts||{}; users=d.users||[]; agendaData=d.agendaData||{}; threads=d.threads||[]; saveAllLocal(); renderCalendar(); alert('Restaurado'); } }catch(err){ alert('Error archivo'); } }; r.readAsText(file); }; f.click(); }
+    function renderCalendar() {
+      const days = document.getElementById('calendarDays');
+      const monthYear = document.getElementById('monthYear');
+      if (!days || !monthYear) return;
+      days.innerHTML = '';
+      monthYear.textContent = currentDate.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
 
-/* ========= Misc convenience ========= */
-function openEditTask(k,i){ openEditTask(k,i); }
-function showForumsRoot(){ showForum('market'); }
+      const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+      dayNames.forEach(d => {
+        const dn = document.createElement('div');
+        dn.className = 'day-name';
+        dn.textContent = d;
+        days.appendChild(dn);
+      });
 
-</script>
+      const start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      const end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+      const offset = (start.getDay() + 6) % 7;
 
+      for (let i = 0; i < offset; i++) {
+        const empty = document.createElement('div');
+        empty.className = 'day';
+        days.appendChild(empty);
+      }
+
+      // calcular 'today' local
+      const now = new Date();
+      const todayY = now.getFullYear();
+      const todayM = now.getMonth();
+      const todayD = now.getDate();
+
+      for (let d = 1; d <= end.getDate(); d++) {
+        const day = document.createElement('div');
+        day.className = 'day';
+
+        const numRow = document.createElement('div');
+        numRow.className = 'cal-number-row';
+        const num = document.createElement('div');
+        num.className = 'date-number';
+        num.textContent = d;
+        numRow.appendChild(num);
+        day.appendChild(numRow);
+
+        if (todayY === currentDate.getFullYear() && todayM === currentDate.getMonth() && todayD === d) {
+          day.classList.add('today');
+        }
+
+        // Cargar registros de estudio
+        const dateKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        let records = safeGetJSON(dateKey, []);
+        if (!Array.isArray(records)) records = [];
+
+        records.forEach(r => {
+          const label = document.createElement('div');
+          label.className = 'study-label';
+          label.textContent = r.materia || '—';
+          label.style.backgroundColor = getSubjectColor(r.materia);
+
+          const tooltip = document.createElement('div');
+          tooltip.className = 'tooltip';
+          const hrs = (r.horas !== undefined) ? r.horas : 0;
+          const mins = (r.minutos !== undefined) ? String(r.minutos).padStart(2,'0') : '00';
+          tooltip.textContent = `⏱ ${hrs}:${mins}\n📚 ${r.tema || ''}`;
+          label.appendChild(tooltip);
+          label.onmouseenter = () => tooltip.style.display = 'block';
+          label.onmouseleave = () => tooltip.style.display = 'none';
+
+          day.appendChild(label);
+        });
+
+        // Click para abrir modal de estudio
+        day.onclick = () => openModal(dateKey);
+        days.appendChild(day);
+      }
+    }
+
+    function changeMonth(diff) {
+      currentDate.setMonth(currentDate.getMonth() + diff);
+      renderCalendar();
+      renderExamCalendar();
+    }
+
+    function openModal(dateKey) {
+      selectedDate = dateKey; editingRecord = null;
+      const hoursInput = document.getElementById('studyHours');
+      const minutesInput = document.getElementById('studyMinutes');
+      const topicInput = document.getElementById('studyTopic');
+      if (hoursInput) hoursInput.value = '';
+      if (minutesInput) minutesInput.value = '';
+      if (topicInput) topicInput.value = '';
+      renderSubjectsSelect();
+
+      let records = safeGetJSON(dateKey, []);
+      if (!Array.isArray(records)) records = [];
+      const list = document.getElementById('recordList');
+      if (!list) return;
+      list.innerHTML = '';
+      if (records.length) {
+        list.style.display = 'block';
+        records.forEach((rec, i) => {
+          const div = document.createElement('div');
+          div.className = 'record-item';
+          div.style.border='1px solid rgba(148,163,184,.15)';
+          div.style.borderRadius='8px';
+          div.style.padding='.5rem';
+          div.style.margin='.4rem 0';
+          const tiempo = `${rec.horas || 0}:${String(rec.minutos || 0).padStart(2,'0')}`;
+          div.innerHTML = `
+            <div><strong>Materia:</strong> ${rec.materia || '—'}</div>
+            <div><strong>Tiempo:</strong> ${tiempo}</div>
+            <div><strong>Tema:</strong> ${rec.tema || ''}</div>
+            <div style="display:flex; gap:.5rem; justify-content:flex-end; margin-top:.4rem">
+              <button class="btn" style="padding:.35rem .6rem" onclick="editRecord(${i})">✏ Editar</button>
+              <button class="btn" style="padding:.35rem .6rem; background:var(--danger)" onclick="deleteRecord(${i})">❌ Borrar</button>
+            </div>`;
+          list.appendChild(div);
+        });
+      } else list.style.display = 'none';
+      document.getElementById('modal').style.display = 'flex';
+    }
+    function closeModal() { const m = document.getElementById('modal'); if (m) m.style.display = 'none'; }
+
+    function saveStudy() {
+      const horas = parseInt(document.getElementById('studyHours').value) || 0;
+      const minutos = parseInt(document.getElementById('studyMinutes').value) || 0;
+      const tema = document.getElementById('studyTopic').value.trim();
+      const materias = Array.from(document.getElementById('subject').selectedOptions).map(o => o.value);
+      if ((horas === 0 && minutos === 0) || !tema || materias.length === 0) { alert('Completá horas/minutos, tema y al menos una materia.'); return; }
+      let records = safeGetJSON(selectedDate, []);
+      if (!Array.isArray(records)) records = [];
+      if (editingRecord !== null && editingRecord !== undefined) {
+        records[editingRecord] = { horas, minutos, tema, materia: materias[0] };
+      } else {
+        materias.forEach(materia => records.push({ horas, minutos, tema, materia }));
+      }
+      safeSetJSON(selectedDate, records);
+      closeModal(); renderCalendar();
+    }
+    function editRecord(i) {
+      let records = safeGetJSON(selectedDate, []);
+      if (!Array.isArray(records)) records = [];
+      const rec = records[i];
+      if (!rec) return;
+      document.getElementById('studyHours').value = rec.horas || 0;
+      document.getElementById('studyMinutes').value = rec.minutos || 0;
+      document.getElementById('studyTopic').value = rec.tema || '';
+      renderSubjectsSelect();
+      const select = document.getElementById('subject');
+      for (let opt of select.options) opt.selected = (opt.value === rec.materia);
+      editingRecord = i;
+    }
+    function deleteRecord(i) {
+      let records = safeGetJSON(selectedDate, []);
+      if (!Array.isArray(records)) records = [];
+      records.splice(i, 1);
+      safeSetJSON(selectedDate, records);
+      openModal(selectedDate); renderCalendar();
+    }
+
+    /********** ==== VISTA: AGENDA ==== **********/
+    function ensureAgendaStructure(){
+      if (!agendaData || typeof agendaData !== 'object') agendaData = {};
+      dayKeys.forEach(k => { if (!Array.isArray(agendaData[k])) agendaData[k] = []; });
+    }
+
+    function renderAgenda() {
+      ensureAgendaStructure();
+      const grid = document.getElementById('agendaGrid');
+      if (!grid) return;
+      grid.innerHTML = '';
+      grid.style.setProperty('--pxPerMin', pxPerMin + 'px');
+
+      // Columna de horas
+      const hoursCol = document.createElement('div');
+      hoursCol.style.display = 'flex';
+      hoursCol.style.flexDirection = 'column';
+      for (let m = minutesStart; m <= minutesEnd; m += 60){
+        const cell = document.createElement('div');
+        cell.className = 'hour-cell';
+        const h = String(Math.floor(m/60)).padStart(2,'0');
+        cell.textContent = `${h}:00`;
+        hoursCol.appendChild(cell);
+      }
+      grid.appendChild(hoursCol);
+
+      // 7 columnas de días
+      dayKeys.forEach((key, idx) => {
+        const col = document.createElement('div');
+        col.className = 'day-col';
+
+        // Header día
+        const header = document.createElement('div');
+        header.className = 'day-name';
+        header.style.position='sticky'; header.style.top='0'; header.style.zIndex='2';
+        header.textContent = dayLabels[idx];
+        col.appendChild(header);
+
+        // Contenedor vertical
+        const inner = document.createElement('div');
+        inner.className = 'day-col-inner';
+        inner.style.height = (minutesRange*pxPerMin) + 'px';
+        inner.onclick = (e)=> { openAgendaModal(key); e.stopPropagation(); };
+
+        // Líneas de hora
+        for (let m = minutesStart; m <= minutesEnd; m += 60){
+          const y = (m - minutesStart) * pxPerMin;
+          const line = document.createElement('div');
+          line.className = 'time-guideline';
+          line.style.top = y + 'px';
+          inner.appendChild(line);
+        }
+
+        // Bloques (verificar que sea array)
+        const itemsArr = Array.isArray(agendaData[key]) ? agendaData[key] : [];
+        itemsArr.forEach((item, i) => {
+          const startM = timeToMinutes(item.inicio);
+          const endM = timeToMinutes(item.fin);
+          // si horarios inválidos, saltar ese bloque (evita excepciones)
+          if (startM === null || endM === null) return;
+          const sM = clamp(startM, minutesStart, minutesEnd);
+          const eM = clamp(endM, minutesStart, minutesEnd);
+          if (eM <= sM) return;
+          const top = (sM - minutesStart) * pxPerMin;
+          const height = (eM - sM) * pxPerMin;
+
+          const block = document.createElement('div');
+          block.className = 'class-block';
+          block.style.top = top + 'px';
+          block.style.height = height + 'px';
+          block.style.background = getSubjectColor(item.materia);
+          block.style.opacity = .95;
+          block.innerHTML = `<strong>${item.materia}</strong><div class="small">${item.aula ? item.aula + ' • ' : ''}${item.inicio}–${item.fin}</div>`;
+          block.onclick = (e) => { e.stopPropagation(); openAgendaModal(key, i); };
+          inner.appendChild(block);
+        });
+
+        col.appendChild(inner);
+        grid.appendChild(col);
+      });
+    }
+
+    let agendaEditDay = null; let agendaEditIndex = null;
+    function openAgendaModal(dayKey=null, idx=null){
+      ensureAgendaStructure();
+      agendaEditDay = dayKey; agendaEditIndex = idx;
+      const daySel = document.getElementById('agendaDay');
+      if (!daySel) return;
+      daySel.innerHTML = '';
+      dayKeys.forEach((k,i)=>{
+        const opt = document.createElement('option'); opt.value=k; opt.textContent=dayLabels[i]; daySel.appendChild(opt);
+      });
+      if (dayKey) daySel.value = dayKey;
+
+      // Materias
+      const subSel = document.getElementById('agendaSubject');
+      if (!subSel) return;
+      subSel.innerHTML = '';
+      (subjects||[]).forEach(s=>{ const o=document.createElement('option'); o.value=s.name; o.textContent=s.name; subSel.appendChild(o); });
+
+      document.getElementById('agendaRoom').value = '';
+      document.getElementById('agendaStart').value = '';
+      document.getElementById('agendaEnd').value = '';
+      document.getElementById('deleteAgendaBtn').style.display = 'none';
+      document.getElementById('agendaModalTitle').textContent = idx===null? 'Añadir clase' : 'Editar clase';
+
+      if (idx !== null && dayKey){
+        const it = agendaData[dayKey] && agendaData[dayKey][idx];
+        if (it){
+          subSel.value = it.materia;
+          document.getElementById('agendaRoom').value = it.aula || '';
+          document.getElementById('agendaStart').value = it.inicio || '';
+          document.getElementById('agendaEnd').value = it.fin || '';
+          document.getElementById('deleteAgendaBtn').style.display = 'block';
+        }
+      }
+      document.getElementById('agendaModal').style.display = 'flex';
+    }
+    function closeAgendaModal(){ const m = document.getElementById('agendaModal'); if (m) m.style.display = 'none'; }
+
+    function saveAgendaItem(){
+      ensureAgendaStructure();
+      const day = document.getElementById('agendaDay').value;
+      const materia = document.getElementById('agendaSubject').value;
+      const aula = document.getElementById('agendaRoom').value.trim();
+      const inicio = document.getElementById('agendaStart').value;
+      const fin = document.getElementById('agendaEnd').value;
+      if (!day || !materia || !inicio || !fin){ alert('Completá día, materia, inicio y fin.'); return; }
+      const startM = timeToMinutes(inicio), endM = timeToMinutes(fin);
+      if (startM === null || endM === null){ alert('Formato de hora inválido. Usa HH:MM.'); return; }
+      if (startM < minutesStart || endM > minutesEnd || endM <= startM){ alert('Rango permitido: 08:00–23:00 y fin > inicio.'); return; }
+      const item = { materia, aula, inicio, fin };
+      if (agendaEditIndex===null || agendaEditIndex===undefined){ agendaData[day].push(item); }
+      else { agendaData[day][agendaEditIndex] = item; }
+      safeSetJSON('agendaData', agendaData);
+      closeAgendaModal(); renderAgenda();
+    }
+    function deleteAgendaItem(){
+      if (agendaEditDay===null || agendaEditIndex===null) return;
+      agendaData[agendaEditDay].splice(agendaEditIndex,1);
+      safeSetJSON('agendaData', agendaData);
+      closeAgendaModal(); renderAgenda();
+    }
+
+    /********** ==== VISTA: PARCIALES (separadas de estudio) ==== **********/
+    function renderExamSubjects(){
+      const sel = document.getElementById('examSubject');
+      if (!sel) return;
+      sel.innerHTML='';
+      (subjects||[]).forEach(s=>{ const o=document.createElement('option'); o.value=s.name; o.textContent=s.name; sel.appendChild(o); });
+    }
+
+    function renderExamCalendar(){
+      const days = document.getElementById('examCalendarDays');
+      if (!days) return;
+      days.innerHTML = '';
+
+      const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+      dayNames.forEach(d => { const dn=document.createElement('div'); dn.className='day-name'; dn.textContent=d; days.appendChild(dn); });
+
+      const start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      const end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+      const offset = (start.getDay() + 6) % 7;
+      for (let i=0;i<offset;i++){ const empty=document.createElement('div'); empty.className='day'; days.appendChild(empty); }
+
+      // calcular 'today' local para resaltar en parciales también
+      const now = new Date();
+      const todayY = now.getFullYear();
+      const todayM = now.getMonth();
+      const todayD = now.getDate();
+
+      for (let d=1; d<=end.getDate(); d++){
+        const day = document.createElement('div'); day.className='day';
+        const numRow = document.createElement('div');
+        numRow.className = 'cal-number-row';
+        const num = document.createElement('div'); num.className='date-number'; num.textContent = d;
+        numRow.appendChild(num);
+        day.appendChild(numRow);
+
+        if (todayY === currentDate.getFullYear() && todayM === currentDate.getMonth() && todayD === d) {
+          day.classList.add('today');
+        }
+
+        const dateKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        let items = safeGetJSON('exams:'+dateKey, []);
+        if (!Array.isArray(items)) items = [];
+        items.forEach(it=>{
+          const label = document.createElement('div'); label.className='exam-label'; label.style.backgroundColor = getSubjectColor(it.materia);
+          label.textContent = it.materia || '—';
+          label.style.display = 'block';
+          label.style.marginTop = '6px';
+          label.style.maxHeight = '3.6rem';
+          label.style.overflow = 'hidden';
+          const tooltip = document.createElement('div'); tooltip.className='tooltip';
+          tooltip.textContent = `📆 ${dateKey}\n📚 ${it.materia || ''}${it.tema?`\n🧩 ${it.tema}`:''}${it.obs?`\n📝 ${it.obs}`:''}`;
+          label.appendChild(tooltip); label.onmouseenter=()=>tooltip.style.display='block'; label.onmouseleave=()=>tooltip.style.display='none';
+          day.appendChild(label);
+        });
+        day.onclick = () => openExamModal(dateKey);
+        days.appendChild(day);
+      }
+    }
+
+    function openExamModal(dateKey){
+      examDateKey = dateKey; examEditingIndex = null;
+      document.getElementById('examModalTitle').textContent = 'Nuevo parcial';
+      const delBtn = document.getElementById('deleteExamBtn');
+      if (delBtn) delBtn.style.display = 'none';
+      const label = document.getElementById('examDateLabel');
+      if (label) label.textContent = 'Fecha: '+dateKey;
+      renderExamSubjects();
+      document.getElementById('examTopic').value = '';
+      document.getElementById('examNotes').value = '';
+      document.getElementById('examModal').style.display = 'flex';
+    }
+    function closeExamModal(){ const m = document.getElementById('examModal'); if (m) m.style.display = 'none'; }
+
+    function saveExamItem(){
+      if (!examDateKey) return;
+      const materia = document.getElementById('examSubject').value;
+      const tema = document.getElementById('examTopic').value.trim();
+      const obs = document.getElementById('examNotes').value.trim();
+      const key = 'exams:'+examDateKey;
+      let items = safeGetJSON(key, []);
+      if (!Array.isArray(items)) items = [];
+      const item = { materia, tema, obs };
+      if (examEditingIndex===null || examEditingIndex===undefined) items.push(item); else items[examEditingIndex]=item;
+      safeSetJSON(key, items);
+      closeExamModal(); renderExamCalendar(); renderCalendar();
+    }
+    function deleteExamItem(){
+      if (examDateKey===null || examEditingIndex===null) return;
+      const key = 'exams:'+examDateKey;
+      let items = safeGetJSON(key, []);
+      if (!Array.isArray(items)) items = [];
+      items.splice(examEditingIndex,1);
+      safeSetJSON(key, items);
+      closeExamModal(); renderExamCalendar(); renderCalendar();
+    }
+
+    /********** ==== Materias (gestor) ==== **********/
+    let subjectsMode = 'add';
+    let editingSubjectIndex = -1;
+    let selectedSwatchColor = COLOR_PALETTE[0];
+
+    function renderSubjectsList() {
+      const list = document.getElementById('subjectsList');
+      if (!list) return;
+      list.innerHTML = '';
+      if (!Array.isArray(subjects) || subjects.length === 0){ list.innerHTML = '<em>No hay materias creadas aún.</em>'; return; }
+      subjects.forEach((sub, i) => {
+        const row = document.createElement('div');
+        row.className = 'subject-row';
+        row.style.display='flex'; row.style.alignItems='center'; row.style.gap='.6rem';
+        row.style.background='#0b1220'; row.style.border='1px solid rgba(148,163,184,.15)'; row.style.borderRadius='10px'; row.style.padding='.5rem .6rem'; row.style.margin='.4rem 0';
+        row.innerHTML = `
+          <div class="dot" style="background:${sub.color}; width:18px; height:18px; border-radius:50%; border:1px solid rgba(0,0,0,.25);"></div>
+          <div class="subject-name" style="flex:1">${sub.name}</div>
+          <button class="btn" style="padding:.3rem .6rem" onclick="startEditSubject(${i})">✏ Editar</button>
+          <button class="btn" style="padding:.3rem .6rem; background:var(--danger)" onclick="deleteSubject(${i})">❌ Borrar</button>
+        `;
+        list.appendChild(row);
+      });
+    }
+    function renderSwatches(){
+      const cont = document.getElementById('swatches'); if (!cont) return;
+      cont.innerHTML='';
+      COLOR_PALETTE.forEach(col => {
+        const d = document.createElement('div');
+        d.className = 'swatch';
+        d.style.height='28px'; d.style.borderRadius='8px'; d.style.border='1px solid rgba(0,0,0,.25)'; d.style.cursor='pointer';
+        d.style.outline='2px solid '+(col===selectedSwatchColor?'#fff':'transparent'); d.style.outlineOffset='2px';
+        d.style.background = col; d.onclick = () => { selectedSwatchColor = col; const c = document.getElementById('customColor'); if (c) c.value = col; renderSwatches(); };
+        cont.appendChild(d);
+      });
+    }
+    function openSubjectsModal() {
+      subjectsMode = 'add'; editingSubjectIndex = -1;
+      const title = document.getElementById('subjectsTitle'); if (title) title.textContent = 'Gestionar Materias';
+      const btn = document.getElementById('addUpdateBtn'); if (btn) btn.textContent = 'Agregar materia';
+      resetSubjectsForm(false); renderSubjectsList(); renderSwatches();
+      document.getElementById('subjectsModal').style.display = 'flex';
+    }
+    function closeSubjectsModal() { const m = document.getElementById('subjectsModal'); if (m) m.style.display = 'none'; }
+    function resetSubjectsForm(resetPalette = true){
+      const nm = document.getElementById('subjectName'); if (nm) nm.value = '';
+      const custom = document.getElementById('customColor');
+      if (resetPalette && custom){ selectedSwatchColor = COLOR_PALETTE[0]; custom.value = selectedSwatchColor; renderSwatches(); }
+    }
+    function handleAddOrUpdateSubject(){
+      const name = document.getElementById('subjectName').value.trim();
+      const color = document.getElementById('customColor').value || selectedSwatchColor;
+      if (!name){ alert('Ingresá un nombre de materia.'); return; }
+      if (!Array.isArray(subjects)) subjects = [];
+      if (subjectsMode === 'add'){
+        if (subjects.some(s => s.name.toLowerCase() === name.toLowerCase())){ alert('Ya existe una materia con ese nombre.'); return; }
+        subjects.push({ name, color });
+      } else if (subjectsMode === 'edit' && editingSubjectIndex >= 0){
+        subjects[editingSubjectIndex] = { name, color };
+      }
+      saveSubjects(); renderSubjectsList(); renderSubjectsSelect(); resetSubjectsForm();
+      subjectsMode = 'add'; editingSubjectIndex = -1;
+      const title = document.getElementById('subjectsTitle'); if (title) title.textContent = 'Gestionar Materias';
+      const btn = document.getElementById('addUpdateBtn'); if (btn) btn.textContent = 'Agregar materia';
+      renderAgenda(); renderExamCalendar(); renderCalendar();
+    }
+    function startEditSubject(i){
+      subjectsMode = 'edit'; editingSubjectIndex = i;
+      const sub = subjects[i] || { name:'', color: COLOR_PALETTE[0] };
+      const title = document.getElementById('subjectsTitle'); if (title) title.textContent = 'Editar Materia';
+      const btn = document.getElementById('addUpdateBtn'); if (btn) btn.textContent = 'Guardar cambios';
+      const nm = document.getElementById('subjectName'); if (nm) nm.value = sub.name;
+      const custom = document.getElementById('customColor'); if (custom) custom.value = sub.color;
+      selectedSwatchColor = sub.color;
+      renderSwatches();
+    }
+    function deleteSubject(i) {
+      if (!confirm('¿Eliminar esta materia? Los registros existentes no se borrarán.')) return;
+      const removed = subjects[i] && subjects[i].name;
+      subjects.splice(i,1); saveSubjects(); renderSubjectsList(); renderSubjectsSelect();
+      renderAgenda(); renderExamCalendar(); renderCalendar();
+      const used = dayKeys.some(k => Array.isArray(agendaData[k]) && (agendaData[k]||[]).some(it=>it.materia===removed));
+      if (used) console.warn('La materia eliminada estaba en la agenda. Los bloques conservarán el nombre pero pueden verse grises.');
+    }
+
+    /********** ==== Vistas + temas + tabs ==== **********/
+    function showStudy(){
+      setTheme('study');
+      const sv = document.getElementById('studyView');
+      const av = document.getElementById('agendaView');
+      const ev = document.getElementById('examsView');
+      if (sv) sv.style.display = 'block';
+      if (av) av.style.display = 'none';
+      if (ev) ev.style.display = 'none';
+      updateActiveTab('study');
+      renderCalendar();
+    }
+    function showAgenda(){
+      setTheme('agenda');
+      const sv = document.getElementById('studyView');
+      const av = document.getElementById('agendaView');
+      const ev = document.getElementById('examsView');
+      if (sv) sv.style.display = 'none';
+      if (av) av.style.display = 'block';
+      if (ev) ev.style.display = 'none';
+      updateActiveTab('agenda');
+      renderAgenda();
+    }
+    function showExams(){
+      setTheme('exams');
+      const sv = document.getElementById('studyView');
+      const av = document.getElementById('agendaView');
+      const ev = document.getElementById('examsView');
+      if (sv) sv.style.display = 'none';
+      if (av) av.style.display = 'none';
+      if (ev) ev.style.display = 'block';
+      updateActiveTab('exams');
+      renderExamCalendar();
+    }
+
+    /********** ==== Ayuda ==== **********/
+    function openHelpModal(){ const m = document.getElementById('helpModal'); if (m) m.style.display='flex'; }
+    function closeHelpModal(){ const m = document.getElementById('helpModal'); if (m) m.style.display='none'; }
+    function ackHelpClose(){ closeHelpModal(); }
+
+    /********** ==== Planes ==== **********/
+    function openPlansModal(){ const m = document.getElementById('plansModal'); if (m) m.style.display='flex'; }
+    function closePlansModal(){ const m = document.getElementById('plansModal'); if (m) m.style.display='none'; }
+    function lockedPlan(){ alert('No disponible en este momento'); }
+
+    /********** ==== Inicio ==== **********/
+    // Cierre de modales al inicio (si no existen, ignora)
+    ['modal','subjectsModal','agendaModal','examModal','helpModal','plansModal'].forEach(id=>{
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+
+    // Paleta sincronizada con input color (si existe)
+    const customColorInput = document.getElementById('customColor');
+    if (customColorInput) customColorInput.addEventListener('input', (e) => { selectedSwatchColor = e.target.value; renderSwatches(); });
+
+    // Conectar botones de pestañas (para visual activo) - ya tienen onclick en HTML, pero nos aseguramos
+    const btnStudy = document.getElementById('btnStudy'), btnAgenda = document.getElementById('btnAgenda'), btnExams = document.getElementById('btnExams');
+    if (btnStudy) btnStudy.addEventListener('click', ()=>{ updateActiveTab('study'); });
+    if (btnAgenda) btnAgenda.addEventListener('click', ()=>{ updateActiveTab('agenda'); });
+    if (btnExams) btnExams.addEventListener('click', ()=>{ updateActiveTab('exams'); });
+
+    // Handler global de errores: lo mostramos en un pequeño panel debug y consola
+    window.addEventListener('error', (ev) => {
+      console.error('Error capturado:', ev.error || ev.message, ev);
+      const dbg = document.getElementById('debugPanel');
+      if (dbg){
+        dbg.style.display = 'block';
+        dbg.textContent = `Error: ${ev.error ? ev.error.toString() : ev.message}`;
+      }
+    });
+
+    // Render inicial con protecciones
+    try {
+      renderSubjectsSelect();
+      renderCalendar();
+      renderAgenda();
+      renderExamCalendar();
+      updateActiveTab('study');
+    } catch (e) {
+      console.error('Error en render inicial:', e);
+      const dbg = document.getElementById('debugPanel');
+      if (dbg){ dbg.style.display = 'block'; dbg.textContent = 'Error inicial: '+String(e); }
+    }
+
+  </script>
 </body>
 </html>
